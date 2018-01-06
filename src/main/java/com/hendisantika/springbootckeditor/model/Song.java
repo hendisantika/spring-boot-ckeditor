@@ -15,7 +15,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
  * Time: 07.04
  * To change this template use File | Settings | File Templates.
  */
-public class SongModel {
+public class Song {
     @Id
     private String id;
 
@@ -29,7 +29,7 @@ public class SongModel {
     private Boolean updated;
 
     @JsonCreator
-    public SongModel(
+    public Song(
             @JsonProperty("artist") String artist,
             @JsonProperty("song-title") String songTitle) {
         this.artist = artist;

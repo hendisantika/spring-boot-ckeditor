@@ -18,7 +18,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 @QueryEntity
 @Document
-public class MusicModel {
+public class Music {
     @Id
     private String id;
 

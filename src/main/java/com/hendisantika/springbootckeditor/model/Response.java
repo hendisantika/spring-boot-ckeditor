@@ -10,14 +10,14 @@ package com.hendisantika.springbootckeditor.model;
  * Time: 07.03
  * To change this template use File | Settings | File Templates.
  */
-public class ResponseModel {
+public class Response {
     private String data;
 
-    public ResponseModel() {
+    public Response() {
 
     }
 
-    public ResponseModel(String data) {
+    public Response(String data) {
         this.data = data;
     }
 

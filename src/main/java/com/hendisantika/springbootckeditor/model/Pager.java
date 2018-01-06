@@ -10,14 +10,14 @@ package com.hendisantika.springbootckeditor.model;
  * Time: 07.02
  * To change this template use File | Settings | File Templates.
  */
-public class PagerModel {
+public class Pager {
     private int buttonsToShow = 5;
 
     private int startPage;
 
     private int endPage;
 
-    public PagerModel(int totalPages, int currentPage, int buttonsToShow) {
+    public Pager(int totalPages, int currentPage, int buttonsToShow) {
 
         setButtonsToShow(buttonsToShow);
 
