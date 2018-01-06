@@ -1,8 +1,8 @@
 package com.hendisantika.springbootckeditor.uploader;
 
+import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.annotation.Resource;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 
