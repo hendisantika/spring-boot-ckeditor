@@ -1,11 +1,15 @@
 package com.hendisantika.springbootckeditor.controller;
 
+import com.hendisantika.springbootckeditor.model.Response;
+import com.hendisantika.springbootckeditor.model.Song;
 import com.hendisantika.springbootckeditor.model.UpdatedSong;
 import com.hendisantika.springbootckeditor.repository.SongRepo;
+import com.hendisantika.springbootckeditor.repository.UpdatedSongRepo;
 import com.hendisantika.springbootckeditor.service.HTMLFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -27,19 +31,19 @@ public class APIController {
     SongRepo songRepo;
 
     @Autowired
-    UpdatedSongDAO updatedDAO;
+    UpdatedSongRepo updatedSongRepo;
 
     @Autowired
     HTMLFormatter format;
 
     @GetMapping(value = {"/show/", "/show/{sid}"})
     public ResponseEntity<?> getSong(@RequestParam String sid, Model model) {
-        ResponseModel response = new ResponseModel();
+        Response response = new Response();
         System.out.println("SID :::::" + sid);
         ArrayList<String> musicText = new ArrayList<String>();
         if (sid != null) {
             String sidString = sid;
-            SongModel songModel = songDAO.findOne(sidString);
+            Song songModel = songRepo.findOne(sidString);
             System.out.println("get status of boolean during get ::::::" + songModel.getUpdated());
             if (songModel.getUpdated() == false) {
 
@@ -50,7 +54,7 @@ public class APIController {
                 response.setData(filterText);
 
             } else if (songModel.getUpdated() == true) {
-                UpdatedSong updated = updatedDAO.findBysid(sidString);
+                UpdatedSong updated = updatedSongRepo.findBysid(sidString);
                 String text = updated.getHtml();
                 System.out.println("getting the updated text ::::::::" + text);
                 response.setData(text);
@@ -65,10 +69,10 @@ public class APIController {
 
     @PostMapping(value = {"/save/", "/save/[sid]"}, consumes = MediaType.TEXT_HTML_VALUE)
     public @ResponseBody
-    ResponseModel saveSong(@RequestBody String body, @RequestParam String sid) {
-        ResponseModel response = new ResponseModel();
+    Response saveSong(@RequestBody String body, @RequestParam String sid) {
+        Response response = new Response();
         response.setData(body);
-        SongModel oldSong = songDAO.findOne(sid);
+        Song oldSong = songRepo.findOne(sid);
         String songTitle = oldSong.getSongTitle();
         String artistName = oldSong.getArtist();
         if (oldSong.getUpdated() == false) {
@@ -78,13 +82,13 @@ public class APIController {
             updatedSong.setHtml(body);
             updatedSong.setSid(sid);
             oldSong.setUpdated(true);
-            songDAO.save(oldSong);
-            updatedDAO.insert(updatedSong);
+            songRepo.save(oldSong);
+            updatedSongRepo.insert(updatedSong);
             System.out.println("get status of boolean during post :::::" + oldSong.getUpdated());
         } else {
-            UpdatedSong currentSong = updatedDAO.findBysid(sid);
+            UpdatedSong currentSong = updatedSongRepo.findBysid(sid);
             currentSong.setHtml(body);
-            updatedDAO.save(currentSong);
+            updatedSongRepo.save(currentSong);
         }
 
         return response;
