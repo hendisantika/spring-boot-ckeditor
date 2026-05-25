@@ -15,7 +15,6 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.support.TaskExecutorJobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
-import org.springframework.batch.core.repository.support.ResourcelessJobRepository;
 import org.springframework.batch.core.step.Step;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.infrastructure.repeat.RepeatStatus;
@@ -23,6 +22,7 @@ import org.springframework.batch.infrastructure.support.transaction.Resourceless
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -48,6 +48,11 @@ import java.util.stream.Collectors;
 @Configuration
 public class UploadJob {
     public static int PRETTY_PRINT_INDENT_FACTOR = 4;
+    // @Lazy breaks the FileUploadController <-> UploadJob bean cycle (the
+    // controller needs the Job/JobLauncher beans defined here, while the step
+    // tasklet only needs the controller at job-run time). Boot 4 forbids
+    // circular references by default.
+    @Lazy
     @Autowired
     FileUploadController uploadController;
     @Autowired
@@ -55,14 +60,9 @@ public class UploadJob {
     @Autowired
     private SongRepo songDAO;
 
-    // Spring Batch 6 needs a JobRepository and a PlatformTransactionManager.
-    // This app has no relational datasource, so use the in-memory, non-persistent
-    // resourceless variants instead of the default JDBC ones.
-    @Bean
-    public JobRepository jobRepository() {
-        return new ResourcelessJobRepository();
-    }
-
+    // Spring Boot 4 already auto-configures a (resourceless, since this app has no
+    // datasource) JobRepository and a JobOperator. It does not expose a
+    // PlatformTransactionManager bean for steps, nor a JobLauncher, so provide those.
     @Bean
     public PlatformTransactionManager batchTransactionManager() {
         return new ResourcelessTransactionManager();
