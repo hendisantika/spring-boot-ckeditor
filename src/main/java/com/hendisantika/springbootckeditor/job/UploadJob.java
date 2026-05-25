@@ -10,21 +10,23 @@ import org.bson.Document;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.XML;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.Step;
-import org.springframework.batch.core.StepContribution;
-import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.core.scope.context.ChunkContext;
-import org.springframework.batch.core.step.tasklet.Tasklet;
-import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.launch.support.TaskExecutorJobLauncher;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.repository.support.ResourcelessJobRepository;
+import org.springframework.batch.core.step.Step;
+import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.infrastructure.repeat.RepeatStatus;
+import org.springframework.batch.infrastructure.support.transaction.ResourcelessTransactionManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -44,62 +46,66 @@ import java.util.stream.Collectors;
  */
 
 @Configuration
-@EnableBatchProcessing
 public class UploadJob {
     public static int PRETTY_PRINT_INDENT_FACTOR = 4;
     @Autowired
     FileUploadController uploadController;
     @Autowired
-    private JobBuilderFactory jobBuilderFactory;
-    @Autowired
-    private StepBuilderFactory stepBuilderFactory;
-    @Autowired
     private MongoTemplate mongoTemplate;
     @Autowired
     private SongRepo songDAO;
 
+    // Spring Batch 6 needs a JobRepository and a PlatformTransactionManager.
+    // This app has no relational datasource, so use the in-memory, non-persistent
+    // resourceless variants instead of the default JDBC ones.
     @Bean
-    public Step step1() {
-        return stepBuilderFactory.get("step1")
-                .tasklet(new Tasklet() {
-                    @Override
-                    public RepeatStatus execute(StepContribution stepContribution, ChunkContext chunkContext) {
+    public JobRepository jobRepository() {
+        return new ResourcelessJobRepository();
+    }
 
+    @Bean
+    public PlatformTransactionManager batchTransactionManager() {
+        return new ResourcelessTransactionManager();
+    }
 
-                        // insert ssg xccdf
-                        Path xmlDocPath = uploadController.getCurrentFilePath();
-                        String jsonB = processXML2JSON(xmlDocPath);
-                        insertToMongo(jsonB);
-                        return RepeatStatus.FINISHED;
-                    }
-                })
+    @Bean
+    public JobLauncher jobLauncher(JobRepository jobRepository) throws Exception {
+        TaskExecutorJobLauncher jobLauncher = new TaskExecutorJobLauncher();
+        jobLauncher.setJobRepository(jobRepository);
+        jobLauncher.afterPropertiesSet();
+        return jobLauncher;
+    }
+
+    @Bean
+    public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new StepBuilder("step1", jobRepository)
+                .tasklet((stepContribution, chunkContext) -> {
+                    // insert ssg xccdf
+                    Path xmlDocPath = uploadController.getCurrentFilePath();
+                    String jsonB = processXML2JSON(xmlDocPath);
+                    insertToMongo(jsonB);
+                    return RepeatStatus.FINISHED;
+                }, transactionManager)
                 .build();
     }
 
 
     @Bean
-    public Step step2() {
-        return stepBuilderFactory.get("step2")
-                .tasklet(new Tasklet() {
-                    @Override
-                    public RepeatStatus execute(StepContribution stepContribution, ChunkContext chunkContext) throws Exception {
-
-                        doAQuery();
-                        return RepeatStatus.FINISHED;
-                    }
-                })
-
+    public Step step2(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new StepBuilder("step2", jobRepository)
+                .tasklet((stepContribution, chunkContext) -> {
+                    doAQuery();
+                    return RepeatStatus.FINISHED;
+                }, transactionManager)
                 .build();
     }
 
     @Bean
-    public Job UploadProcessor() {
-        return jobBuilderFactory.get("UploadProcessor")
-                .start(step1())
-                .next(step2())
+    public Job UploadProcessor(JobRepository jobRepository, Step step1, Step step2) {
+        return new JobBuilder("UploadProcessor", jobRepository)
+                .start(step1)
+                .next(step2)
                 .build();
-
-
     }
 
     public List<Song> doAQuery() throws IOException {
