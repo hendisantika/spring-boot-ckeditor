@@ -43,7 +43,7 @@ public class APIController {
         ArrayList<String> musicText = new ArrayList<String>();
         if (sid != null) {
             String sidString = sid;
-            Song songModel = songRepo.findOne(sidString);
+            Song songModel = songRepo.findById(sidString).orElse(null);
             System.out.println("get status of boolean during get ::::::" + songModel.getUpdated());
             if (songModel.getUpdated() == false) {
 
@@ -72,7 +72,7 @@ public class APIController {
     Response saveSong(@RequestBody String body, @RequestParam String sid) {
         Response response = new Response();
         response.setData(body);
-        Song oldSong = songRepo.findOne(sid);
+        Song oldSong = songRepo.findById(sid).orElse(null);
         String songTitle = oldSong.getSongTitle();
         String artistName = oldSong.getArtist();
         if (oldSong.getUpdated() == false) {

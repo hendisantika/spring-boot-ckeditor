@@ -62,7 +62,7 @@ public class WebController {
         // param. decreased by 1.
         int evalPage = (page.orElse(0) < 1) ? INITIAL_PAGE : page.get() - 1;
 
-        Page<Music> Musiclist = musicRepo.findAll(new PageRequest(evalPage, evalPageSize));
+        Page<Music> Musiclist = musicRepo.findAll(PageRequest.of(evalPage, evalPageSize));
         System.out.println("client list get total pages" + Musiclist.getTotalPages() + "client list get number " + Musiclist.getNumber());
         Pager pager = new Pager(Musiclist.getTotalPages(), Musiclist.getNumber(), BUTTONS_TO_SHOW);
 
@@ -94,7 +94,7 @@ public class WebController {
         int evalPage = (page.orElse(0) < 1) ? INITIAL_PAGE : page.get() - 1;
 
 
-        Page<Song> songList = songRepo.findAll(new PageRequest(evalPage, evalPageSize));
+        Page<Song> songList = songRepo.findAll(PageRequest.of(evalPage, evalPageSize));
         System.out.println("PAGE RULE LIST :::::::: " + songList);
 
         Pager pager = new Pager(songList.getTotalPages(), songList.getNumber(), BUTTONS_TO_SHOW);
