@@ -1,8 +1,8 @@
 package com.hendisantika.springbootckeditor.job;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.type.CollectionType;
-import com.fasterxml.jackson.databind.type.TypeFactory;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.type.CollectionType;
+import tools.jackson.databind.type.TypeFactory;
 import com.hendisantika.springbootckeditor.model.Song;
 import com.hendisantika.springbootckeditor.repository.SongRepo;
 import com.hendisantika.springbootckeditor.uploader.FileUploadController;
