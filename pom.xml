@@ -22,6 +22,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <java.version>25</java.version>
+        <!-- Override Spring Boot 4.0.6's managed 11.0.21 to patch CVEs
+             (GHSA-5m62-pw8w-7w9f, -h6fc-48rj-7qqh, -r29c-68gh-xp6x, etc.) -->
+        <tomcat.version>11.0.22</tomcat.version>
     </properties>
 
     <dependencies>
@@ -60,30 +63,17 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-mongodb</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.querydsl</groupId>
-            <artifactId>querydsl-mongodb</artifactId>
-            <version>${querydsl.version}</version>
-            <!-- Pulls the legacy uber org.mongodb:mongo-java-driver whose old
-                 com.mongodb classes shadow the modern split driver shipped by
-                 spring-data-mongodb. QueryDSL-mongo isn't used at runtime here
-                 (no QuerydslPredicateExecutor), so exclude it. -->
-            <exclusions>
-                <exclusion>
-                    <groupId>org.mongodb</groupId>
-                    <artifactId>mongo-java-driver</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.querydsl</groupId>
-            <artifactId>querydsl-apt</artifactId>
-            <version>${querydsl.version}</version>
-        </dependency>
         <!-- legacy html allow -->
         <dependency>
             <groupId>net.sourceforge.nekohtml</groupId>
             <artifactId>nekohtml</artifactId>
+        </dependency>
+        <!-- Override nekohtml's transitive xercesImpl 2.11.0 to patch CVEs
+             (GHSA-h65f-jvqw-m9fj, -7j4h-8wpf-rqfh, -vmqm-g3vh-847m, -w4jq-qh47-hvjq). -->
+        <dependency>
+            <groupId>xerces</groupId>
+            <artifactId>xercesImpl</artifactId>
+            <version>2.12.2</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

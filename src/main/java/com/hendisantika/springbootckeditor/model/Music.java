@@ -1,6 +1,5 @@
 package com.hendisantika.springbootckeditor.model;
 
-import com.querydsl.core.annotations.QueryEntity;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -16,7 +15,6 @@ import org.springframework.data.mongodb.core.mapping.Document;
  * To change this template use File | Settings | File Templates.
  */
 
-@QueryEntity
 @Document
 public class Music {
     @Id
