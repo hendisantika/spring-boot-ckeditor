@@ -1,14 +1,9 @@
 package com.hendisantika.springbootckeditor.uploader;
 
-import com.hendisantika.springbootckeditor.job.UploadJob;
 import com.hendisantika.springbootckeditor.repository.MusicRepo;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobParameters;
-import org.springframework.batch.core.JobParametersInvalidException;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.launch.JobLauncher;
-import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
-import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
-import org.springframework.batch.core.repository.JobRestartException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -45,7 +40,7 @@ public class FileUploadController {
     @Autowired
     MusicRepo musicDAO;
     @Autowired
-    private UploadJob uploadJob;
+    private Job uploadProcessor;
 
     public FileUploadController(StorageService storageService) {
         this.storageService = storageService;
@@ -72,7 +67,7 @@ public class FileUploadController {
 
     @PostMapping("/")
     public String postTheFile(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes)
-            throws IOException, JobExecutionAlreadyRunningException, JobRestartException, JobInstanceAlreadyCompleteException, JobParametersInvalidException {
+            throws Exception {
         // store the file to server
         storageService.store(file);
         // convert multipartfile to file
@@ -88,8 +83,7 @@ public class FileUploadController {
         System.out.println("xmlPathbb:::::" + xmlPathbb);
         //
 
-        Job job = uploadJob.UploadProcessor();
-        jobLauncher.run(job, new JobParameters());
+        jobLauncher.run(uploadProcessor, new JobParameters());
 
         return "uploadForm";
     }

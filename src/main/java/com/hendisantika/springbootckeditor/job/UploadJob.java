@@ -1,8 +1,8 @@
 package com.hendisantika.springbootckeditor.job;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.type.CollectionType;
-import com.fasterxml.jackson.databind.type.TypeFactory;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.type.CollectionType;
+import tools.jackson.databind.type.TypeFactory;
 import com.hendisantika.springbootckeditor.model.Song;
 import com.hendisantika.springbootckeditor.repository.SongRepo;
 import com.hendisantika.springbootckeditor.uploader.FileUploadController;
@@ -10,21 +10,23 @@ import org.bson.Document;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.XML;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.Step;
-import org.springframework.batch.core.StepContribution;
-import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.core.scope.context.ChunkContext;
-import org.springframework.batch.core.step.tasklet.Tasklet;
-import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.launch.support.TaskExecutorJobLauncher;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.Step;
+import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.infrastructure.repeat.RepeatStatus;
+import org.springframework.batch.infrastructure.support.transaction.ResourcelessTransactionManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -44,62 +46,66 @@ import java.util.stream.Collectors;
  */
 
 @Configuration
-@EnableBatchProcessing
 public class UploadJob {
     public static int PRETTY_PRINT_INDENT_FACTOR = 4;
+    // @Lazy breaks the FileUploadController <-> UploadJob bean cycle (the
+    // controller needs the Job/JobLauncher beans defined here, while the step
+    // tasklet only needs the controller at job-run time). Boot 4 forbids
+    // circular references by default.
+    @Lazy
     @Autowired
     FileUploadController uploadController;
-    @Autowired
-    private JobBuilderFactory jobBuilderFactory;
-    @Autowired
-    private StepBuilderFactory stepBuilderFactory;
     @Autowired
     private MongoTemplate mongoTemplate;
     @Autowired
     private SongRepo songDAO;
 
+    // Spring Boot 4 already auto-configures a (resourceless, since this app has no
+    // datasource) JobRepository and a JobOperator. It does not expose a
+    // PlatformTransactionManager bean for steps, nor a JobLauncher, so provide those.
     @Bean
-    public Step step1() {
-        return stepBuilderFactory.get("step1")
-                .tasklet(new Tasklet() {
-                    @Override
-                    public RepeatStatus execute(StepContribution stepContribution, ChunkContext chunkContext) {
+    public PlatformTransactionManager batchTransactionManager() {
+        return new ResourcelessTransactionManager();
+    }
 
+    @Bean
+    public JobLauncher jobLauncher(JobRepository jobRepository) throws Exception {
+        TaskExecutorJobLauncher jobLauncher = new TaskExecutorJobLauncher();
+        jobLauncher.setJobRepository(jobRepository);
+        jobLauncher.afterPropertiesSet();
+        return jobLauncher;
+    }
 
-                        // insert ssg xccdf
-                        Path xmlDocPath = uploadController.getCurrentFilePath();
-                        String jsonB = processXML2JSON(xmlDocPath);
-                        insertToMongo(jsonB);
-                        return RepeatStatus.FINISHED;
-                    }
-                })
+    @Bean
+    public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new StepBuilder("step1", jobRepository)
+                .tasklet((stepContribution, chunkContext) -> {
+                    // insert ssg xccdf
+                    Path xmlDocPath = uploadController.getCurrentFilePath();
+                    String jsonB = processXML2JSON(xmlDocPath);
+                    insertToMongo(jsonB);
+                    return RepeatStatus.FINISHED;
+                }, transactionManager)
                 .build();
     }
 
 
     @Bean
-    public Step step2() {
-        return stepBuilderFactory.get("step2")
-                .tasklet(new Tasklet() {
-                    @Override
-                    public RepeatStatus execute(StepContribution stepContribution, ChunkContext chunkContext) throws Exception {
-
-                        doAQuery();
-                        return RepeatStatus.FINISHED;
-                    }
-                })
-
+    public Step step2(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new StepBuilder("step2", jobRepository)
+                .tasklet((stepContribution, chunkContext) -> {
+                    doAQuery();
+                    return RepeatStatus.FINISHED;
+                }, transactionManager)
                 .build();
     }
 
     @Bean
-    public Job UploadProcessor() {
-        return jobBuilderFactory.get("UploadProcessor")
-                .start(step1())
-                .next(step2())
+    public Job UploadProcessor(JobRepository jobRepository, Step step1, Step step2) {
+        return new JobBuilder("UploadProcessor", jobRepository)
+                .start(step1)
+                .next(step2)
                 .build();
-
-
     }
 
     public List<Song> doAQuery() throws IOException {
